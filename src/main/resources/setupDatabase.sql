@@ -42,11 +42,10 @@ CREATE TABLE GroupTicketPreference(
 
 CREATE TABLE BelowTheLineBallot(
   stateCode TEXT(3),
-  ballotBatch INTEGER,
-  ballotPaper INTEGER,
+  ballotID TEXT(12),
   candidateID INTEGER,
   preference INTEGER,
-  PRIMARY KEY (stateCode, ballotBatch, ballotPaper, candidateID),
+  PRIMARY KEY (stateCode, ballotID, candidateID),
   FOREIGN KEY (stateCode) REFERENCES State (stateCode),
   FOREIGN KEY (candidateID) REFERENCES Candidate (candidateID)
 );

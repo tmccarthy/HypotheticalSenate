@@ -1,4 +1,5 @@
 apply plugin: 'java'
+apply plugin: 'application'
 
 sourceCompatibility = 1.8
 version = '1.0'
@@ -18,4 +19,12 @@ dependencies {
     compile 'com.google.code.findbugs:jsr305:3.0.0'
     compile 'commons-io:commons-io:2.4'
     compile 'net.sf.opencsv:opencsv:2.3'
+}
+
+mainClassName = 'au.id.tmm.hypotheticalsenate.Main'
+
+run {
+    if ( project.hasProperty("appArgs") ) {
+        args Eval.me(appArgs)
+    }
 }

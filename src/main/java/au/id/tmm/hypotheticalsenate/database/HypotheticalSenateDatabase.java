@@ -1,6 +1,7 @@
 package au.id.tmm.hypotheticalsenate.database;
 
 import au.com.bytecode.opencsv.CSVReader;
+import au.id.tmm.hypotheticalsenate.Main;
 import au.id.tmm.hypotheticalsenate.model.AustralianState;
 import org.apache.commons.io.IOUtils;
 
@@ -10,6 +11,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -17,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
-import static au.id.tmm.hypotheticalsenate.database.DataSource.*;
+import static au.id.tmm.hypotheticalsenate.database.AECResource.*;
 
 /**
  * @author timothy
@@ -26,13 +28,14 @@ public class HypotheticalSenateDatabase {
 
     private static final String SQLITE_DRIVER_NAME = "org.sqlite.JDBC";
     private static final String CREATE_TABLES_SCRIPT_LOCATION = "/setupDatabase.sql";
+    public static final int COMMIT_EVERY = 1000;
 
     private final String databaseUrl;
-    private final String location;
+    private final File dbFile;
 
-    public HypotheticalSenateDatabase(String location) {
-        this.location = location;
-        this.databaseUrl = "jdbc:sqlite:" + location;
+    public HypotheticalSenateDatabase(File dbFile) {
+        this.dbFile = dbFile;
+        this.databaseUrl = "jdbc:sqlite:" + dbFile.getPath();
 
         try {
             Class.forName(SQLITE_DRIVER_NAME);
@@ -42,15 +45,21 @@ public class HypotheticalSenateDatabase {
     }
 
     public void delete() {
-        new File(this.location).delete();
+        Main.out.println("Deleting old database...");
+        if (!this.dbFile.delete()) {
+            throw new RuntimeException("Unable to delete the file at " + dbFile.getPath());
+        }
     }
 
     public void createTables() {
+        Main.out.println("Creating database tables...");
         this.runWithConnection(connection -> {
             try {
-                connection.createStatement()
-                        .executeUpdate(IOUtils.toString(
-                                HypotheticalSenateDatabase.class.getResourceAsStream(CREATE_TABLES_SCRIPT_LOCATION)));
+                Statement statement = connection.createStatement();
+                statement.executeUpdate(IOUtils.toString(
+                        HypotheticalSenateDatabase.class.getResourceAsStream(CREATE_TABLES_SCRIPT_LOCATION)));
+
+                return Arrays.asList(statement);
             } catch (IOException e) {
                 throw new RuntimeException("An error occurred while reading the table creation script", e);
             }
@@ -58,66 +67,28 @@ public class HypotheticalSenateDatabase {
     }
 
     public void loadStates() {
+        Main.out.println("Loading states into database...");
         String insertStatement = "INSERT INTO State (stateCode, stateName) VALUES (?, ?);";
 
         this.runWithConnection(connection -> {
             connection.setAutoCommit(false);
+            PreparedStatement preparedStatement = connection.prepareStatement(insertStatement);
 
             for (AustralianState state : AustralianState.values()) {
-                PreparedStatement preparedStatement = connection.prepareStatement(insertStatement);
                 preparedStatement.setString(1, state.getCode());
                 preparedStatement.setString(2, state.getName());
                 preparedStatement.execute();
             }
 
             connection.commit();
+
+            return Arrays.asList(preparedStatement);
         });
     }
 
-    private void loadFromDataSource(DataSource dataSource, Map<String, Function<String[], List<Object>>> sqlInsertsAndValueExtractors) {
-        if (!dataSource.isDownloaded()) {
-            dataSource.download();
-        }
+    public void loadPartiesAndCandidates(File downloadDirectory) {
+        Main.out.println("Loading parties and candidates into database...");
 
-        this.runWithConnection(connection -> {
-            connection.setAutoCommit(false);
-
-            try (CSVReader csvReader = dataSource.getCSVReader()) {
-                csvReader.readNext(); // Read info line
-                csvReader.readNext(); // Read column header line
-
-                String[] nextLine;
-
-                while ((nextLine = csvReader.readNext()) != null) {
-                    for (Map.Entry<String, Function<String[], List<Object>>> currentEntry : sqlInsertsAndValueExtractors.entrySet()) {
-                        PreparedStatement preparedStatement = connection.prepareStatement(currentEntry.getKey());
-
-                        List<Object> paramValues = currentEntry.getValue().apply(nextLine);
-
-                        for (int paramIndex = 0; paramIndex < paramValues.size(); paramIndex++) {
-                            Object value = paramValues.get(paramIndex);
-                            if (value instanceof String) {
-                                preparedStatement.setString(paramIndex + 1, (String) value);
-                            } else if (value instanceof Integer) {
-                                preparedStatement.setInt(paramIndex + 1, (Integer) value);
-                            } else {
-                                throw new RuntimeException("Unrecognised data type " + value.getClass());
-                            }
-                        }
-
-                        preparedStatement.execute();
-                    }
-                }
-
-                connection.commit();
-            } catch (IOException e) {
-                throw new RuntimeException("An exception occurred while reading the downloaded input file", e);
-            }
-
-        });
-    }
-
-    public void loadPartiesAndCandidates() {
         Map<String, Function<String[], List<Object>>> map = new LinkedHashMap<>(2);
 
         map.put("INSERT OR IGNORE INTO Party (partyID, partyName) VALUES (?, ?)",
@@ -133,10 +104,12 @@ public class HypotheticalSenateDatabase {
                         row[4]
                 ));
 
-        this.loadFromDataSource(SENATE_CANDIDATES, map);
+        this.loadFromDataSource(new DataSource(SENATE_CANDIDATES, downloadDirectory), map);
     }
 
-    public void loadGroupVotingTickets() {
+    public void loadGroupVotingTickets(File downloadDirectory) {
+        Main.out.println("Loading group voting tickets into database...");
+
         Map<String, Function<String[], List<Object>>> map = new LinkedHashMap<>(2);
 
         map.put("INSERT OR IGNORE INTO GroupTicketInfo (stateCode, groupID, ownerParty) VALUES (?, ?, ?)",
@@ -155,10 +128,12 @@ public class HypotheticalSenateDatabase {
                         row[5]
                 ));
 
-        this.loadFromDataSource(GROUP_VOTING_TICKETS, map);
+        this.loadFromDataSource(new DataSource(GROUP_VOTING_TICKETS, downloadDirectory), map);
     }
 
-    public void loadAboveTheLineVotes() {
+    public void loadAboveTheLineVotes(File downloadDirectory) {
+        Main.out.println("Loading above the line votes into database...");
+
         Map<String, Function<String[], List<Object>>> map = new LinkedHashMap<>(1);
 
         map.put("INSERT INTO AboveTheLineVotes (stateCode, groupID, votes) VALUES (?, ?, ?)",
@@ -168,27 +143,80 @@ public class HypotheticalSenateDatabase {
                         row[3]
                 ));
 
-        this.loadFromDataSource(GROUP_FIRST_PREFERENCES, map);
+        this.loadFromDataSource(new DataSource(GROUP_FIRST_PREFERENCES, downloadDirectory), map);
     }
 
-    public void loadBelowTheLinePreferences(Collection<? extends AustralianState> states) {
-        states.forEach(this::loadBelowTheLinePreferences);
+    public void loadBelowTheLinePreferences(File downloadDirectory, Collection<? extends AustralianState> states) {
+        states.forEach(state -> loadBelowTheLinePreferences(downloadDirectory, state));
     }
 
-    public void loadBelowTheLinePreferences(AustralianState state) {
+    public void loadBelowTheLinePreferences(File downloadDirectory, AustralianState state) {
+        Main.out.println("Loading below the line preferences for " + state.getName() + " into database...");
         Map<String, Function<String[], List<Object>>> map = new LinkedHashMap<>(1);
 
-        map.put("INSERT INTO BelowTheLineBallot (stateCode, ballotBatch, ballotPaper, preference, candidateID) " +
-                "VALUES (?, ?, ?, ?, ?)",
+        map.put("INSERT INTO BelowTheLineBallot (stateCode, ballotID, preference, candidateID) " +
+                "VALUES (?, ?, ?, ?)",
                 row -> Arrays.asList(
                         state.getCode(),
-                        row[2],
-                        row[3],
+                        row[2].trim() + "," + row[3],
                         row[1],
                         row[0]
                 ));
 
-        this.loadFromDataSource(DataSource.BTL_DATA_MAP.get(state), map);
+        this.loadFromDataSource(new DataSource(AECResource.BTL_DATA_MAP.get(state), downloadDirectory), map);
+    }
+
+    private void loadFromDataSource(DataSource dataSource,
+                                    Map<String, Function<String[], List<Object>>> sqlInsertsAndValueExtractors) {
+        if (!dataSource.isDownloaded()) {
+            dataSource.download();
+        }
+
+        this.runWithConnection(connection -> {
+            connection.setAutoCommit(false);
+
+            Map<PreparedStatement, Function<String[], List<Object>>> statementValueExtractorMap = new LinkedHashMap<>();
+
+            for (String sql : sqlInsertsAndValueExtractors.keySet()) {
+                statementValueExtractorMap.put(connection.prepareStatement(sql),
+                        sqlInsertsAndValueExtractors.get(sql));
+            }
+
+            try (CSVReader csvReader = dataSource.getCSVReader()) {
+                csvReader.readNext(); // Read info line
+                csvReader.readNext(); // Read column header line
+
+                String[] nextLine;
+
+                while ((nextLine = csvReader.readNext()) != null) {
+                    for (Map.Entry<PreparedStatement, Function<String[], List<Object>>> currentEntry
+                            : statementValueExtractorMap.entrySet()) {
+
+                        PreparedStatement preparedStatement = currentEntry.getKey();
+                        List<Object> paramValues = currentEntry.getValue().apply(nextLine);
+
+                        for (int paramIndex = 0; paramIndex < paramValues.size(); paramIndex++) {
+                            Object value = paramValues.get(paramIndex);
+                            if (value instanceof String) {
+                                preparedStatement.setString(paramIndex + 1, (String) value);
+                            } else if (value instanceof Integer) {
+                                preparedStatement.setInt(paramIndex + 1, (Integer) value);
+                            } else {
+                                throw new RuntimeException("Unrecognised data type " + value.getClass());
+                            }
+                        }
+
+                        preparedStatement.execute();
+                    }
+                }
+
+                connection.commit();
+
+                return statementValueExtractorMap.keySet();
+            } catch (IOException e) {
+                throw new RuntimeException("An exception occurred while reading the downloaded input file", e);
+            }
+        });
     }
 
     private Connection getConnection() {
@@ -202,14 +230,23 @@ public class HypotheticalSenateDatabase {
     @SuppressWarnings("ThrowFromFinallyBlock")
     public void runWithConnection(ConnectionConsumer connectionConsumer) {
         Connection connection = null;
-
+        Collection<? extends Statement> preparedStatements = null;
         try {
             connection = this.getConnection();
 
-            connectionConsumer.useConnection(connection);
+            preparedStatements = connectionConsumer.useConnection(connection);
         } catch (SQLException e) {
             throw new RuntimeException("An error occurred while accessing the database", e);
         } finally {
+            if (preparedStatements != null) {
+                for (Statement preparedStatement : preparedStatements) {
+                    try {
+                        preparedStatement.close();
+                    } catch (SQLException e) {
+                        // We continue
+                    }
+                }
+            }
             if (connection != null) {
                 try {
                     connection.close();
@@ -222,7 +259,6 @@ public class HypotheticalSenateDatabase {
 
     @FunctionalInterface
     public static interface ConnectionConsumer {
-        public void useConnection(Connection connection) throws SQLException;
+        public Collection<? extends Statement> useConnection(Connection connection) throws SQLException;
     }
-
 }

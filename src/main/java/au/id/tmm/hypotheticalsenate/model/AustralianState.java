@@ -13,8 +13,8 @@ public enum AustralianState {
     TAS("TAS", "Tasmania"),
     VIC("VIC", "Victoria"),
     WA("WA", "Western Australia"),
-
     ;
+
     private final String code;
     private final String name;
 
