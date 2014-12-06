@@ -1,6 +1,8 @@
 package au.id.tmm.hypotheticalsenate.database;
 
 import au.com.bytecode.opencsv.CSVReader;
+import au.id.tmm.hypotheticalsenate.model.AustralianState;
+import com.google.common.collect.ImmutableMap;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 
@@ -24,9 +26,23 @@ import java.util.zip.ZipFile;
 public enum DataSource {
 
     SENATE_CANDIDATES("http://results.aec.gov.au/17496/Website/Downloads/SenateCandidatesDownload-17496.txt"),
-    GROUP_VOTING_TICKETS("http://results.aec.gov.au/17496/Website/Downloads/SenateGroupVotingTicketsDownload-17496.txt")
-
+    GROUP_VOTING_TICKETS("http://results.aec.gov.au/17496/Website/Downloads/SenateGroupVotingTicketsDownload-17496.txt"),
+    GROUP_FIRST_PREFERENCES("http://results.aec.gov.au/17496/Website/Downloads/SenateFirstPrefsByStateByGroupByVoteTypeDownload-17496.txt"),
+//    ACT_BTL_PREFERENCES(),
+//    NSW_BTL_PREFERENCES(),
+    NT_BTL_PREFERENCES("http://results.aec.gov.au/17496/Website/External/SenateStateBtlDownload-17496-NT.zip", true, "SenateStateBTLPreferences-17496-NT.txt"),
+//    QLD_BTL_PREFERENCES(),
+//    SA_BTL_PREFERENCES(),
+//    TAS_BTL_PREFERENCES(),
+    VIC_BTL_PREFERENCES("http://results.aec.gov.au/17496/Website/External/SenateStateBtlDownload-17496-VIC.zip", true, "SenateStateBTLPreferences-17496-VIC.txt"),
+//    WA_BTL_PREFERENCES()
     ;
+
+    public static final ImmutableMap<AustralianState, DataSource> BTL_DATA_MAP =
+            ImmutableMap.<AustralianState, DataSource>builder()
+                    .put(AustralianState.VIC, VIC_BTL_PREFERENCES)
+                    .put(AustralianState.NT, NT_BTL_PREFERENCES)
+                    .build();
 
     public static final String DOWNLOADS_LOCATION = "AEC_DATA/";
 
@@ -47,6 +63,10 @@ public enum DataSource {
         this.inZip = inZip;
         this.zipEntryName = Optional.ofNullable(zipEntryName);
         this.csvSeparator = csvSeparator;
+    }
+
+    private DataSource(String downloadLocation, boolean inZip, @Nullable String zipEntryName) {
+        this(downloadLocation, inZip, zipEntryName, '\t');
     }
 
     private DataSource(String downloadLocation, char csvSeparator) {

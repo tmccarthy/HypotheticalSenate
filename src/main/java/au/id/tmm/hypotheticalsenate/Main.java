@@ -5,5 +5,6 @@ package au.id.tmm.hypotheticalsenate;
  */
 public class Main {
 
-
+    public static void main(String[] args) {
+    }
 }
