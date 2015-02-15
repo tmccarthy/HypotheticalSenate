@@ -4,3 +4,6 @@ notes
 .idea
 data
 gradle.properties
+test.db
+aecData/**
+gradle/**

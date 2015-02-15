@@ -2,6 +2,9 @@ package au.id.tmm.hypotheticalsenate;
 
 import au.id.tmm.hypotheticalsenate.database.HypotheticalSenateDatabase;
 import au.id.tmm.hypotheticalsenate.model.AustralianState;
+import au.id.tmm.hypotheticalsenate.model.BallotCollector;
+import au.id.tmm.hypotheticalsenate.model.BallotCounter;
+import au.id.tmm.hypotheticalsenate.model.Result;
 import com.google.common.collect.ImmutableMap;
 
 import java.io.File;
@@ -24,6 +27,19 @@ public class AppInstance implements Runnable {
             .put(Command.LOAD_BTL_VOTES_WA, AustralianState.WA)
             .build();
 
+    private ImmutableMap<Command, AustralianState> COUNT_COMMAND_MAP = ImmutableMap.
+            <Command, AustralianState>builder()
+            .put(Command.COUNT_ACT, AustralianState.ACT)
+            .put(Command.COUNT_NSW, AustralianState.NSW)
+            .put(Command.COUNT_NT, AustralianState.NT)
+            .put(Command.COUNT_QLD, AustralianState.QLD)
+            .put(Command.COUNT_SA, AustralianState.SA)
+            .put(Command.COUNT_TAS, AustralianState.TAS)
+            .put(Command.COUNT_VIC, AustralianState.VIC)
+            .put(Command.COUNT_WA, AustralianState.WA)
+            .build();
+
+
     private final File databaseLocation;
     private final File downloadDirectory;
     private final List<Command> commands;
@@ -39,8 +55,9 @@ public class AppInstance implements Runnable {
     @Override
     public void run() {
         // First check if "commands" was in the commands list, if so just run it and return.
-        if (this.commands.contains(Command.COMMANDS)) {
+        if (this.commands.contains(Command.COMMANDS) || this.commands.isEmpty()) {
             this.runCommand(Command.COMMANDS);
+            return;
         }
 
         // Next we perform necessary checks
@@ -50,7 +67,6 @@ public class AppInstance implements Runnable {
 
         // Finally we run the commands
         this.commands.forEach(this::runCommand);
-
     }
 
     private void check() {
@@ -66,11 +82,15 @@ public class AppInstance implements Runnable {
     }
 
     private void runCommand(Command command) {
+        Main.out.println();
+
         if (command.getConstituentCommands().isPresent()) {
             command.getConstituentCommands().get()
                     .forEach(this::runCommand);
         } else if (BTL_COMMAND_MAP.containsKey(command)) {
             this.database.loadBelowTheLinePreferences(this.downloadDirectory, BTL_COMMAND_MAP.get(command));
+        } else if (COUNT_COMMAND_MAP.containsKey(command)) {
+            this.runCountCommand(COUNT_COMMAND_MAP.get(command));
         } else {
             switch (command) {
                 case COMMANDS:
@@ -96,5 +116,23 @@ public class AppInstance implements Runnable {
                     break;
             }
         }
+    }
+
+    private void runCountCommand(AustralianState state) {
+
+        Main.out.println("Performing count for " + state.render());
+
+        BallotCollector ballotCollector = new BallotCollector(state)
+                .loadBallots(this.database)
+                .loadCandidates(this.database);
+
+        BallotCounter ballotCounter = new BallotCounter(
+                state.getNormalVacancies(),
+                ballotCollector.getCandidates(),
+                ballotCollector.getBallots());
+
+        Result result = ballotCounter.run();
+
+        result.printTo(Main.out);
     }
 }

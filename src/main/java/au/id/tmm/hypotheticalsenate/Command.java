@@ -40,7 +40,24 @@ public enum Command {
             LOAD_BTL_VOTES_SA,
             LOAD_BTL_VOTES_TAS,
             LOAD_BTL_VOTES_VIC,
-            LOAD_BTL_VOTES_WA),;
+            LOAD_BTL_VOTES_WA),
+    COUNT_ACT("countACT", "Counts all the votes for the ACT"),
+    COUNT_NSW("countNSW", "Counts all the votes for NSW"),
+    COUNT_NT("countNT", "Counts all the votes for the NT"),
+    COUNT_QLD("countQLD", "Counts all the votes for QLD"),
+    COUNT_SA("countSA", "Counts all the votes for SA"),
+    COUNT_TAS("countTAS", "Counts all the votes for TAS"),
+    COUNT_VIC("countVIC", "Counts all the votes for VIC"),
+    COUNT_WA("countWA", "Counts all the votes for WA"),
+    COUNT_ALL("countAll", "Counts the votes for all states and territories",
+            COUNT_ACT,
+            COUNT_NSW,
+            COUNT_NT,
+            COUNT_QLD,
+            COUNT_SA,
+            COUNT_TAS,
+            COUNT_VIC,
+            COUNT_WA);
 
     private String name;
     private String description;
@@ -68,7 +85,7 @@ public enum Command {
         return this.name + ": " + this.description
                 + this.constituentCommands
                 .map(commands ->
-                        " made up of "
+                        ". Made up of "
                                 + StringUtils.join(
                                 commands
                                         .stream()
@@ -80,7 +97,7 @@ public enum Command {
     public static String allSummaries() {
         return "\t" + StringUtils.join(EnumSet.allOf(Command.class)
                         .stream()
-                        .map(commandLineCommand -> commandLineCommand.getSummary())
+                        .map(Command::getSummary)
                         .collect(Collectors.toList()),
                 System.lineSeparator() + "\t");
     }

@@ -1,5 +1,6 @@
 package au.id.tmm.hypotheticalsenate;
 
+import org.apache.commons.lang3.StringUtils;
 import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
@@ -27,6 +28,7 @@ public class Main {
         File downloadDirectory = commandLineArgs.aecDataDownloadDirectory;
         List<Command> commandLineCommands = commandLineArgs.arguments
                 .stream()
+                .filter(StringUtils::isNotBlank)
                 .map(Command::from)
                 .collect(Collectors.toList());
 

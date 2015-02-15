@@ -17,6 +17,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 
 import static au.id.tmm.hypotheticalsenate.database.AECResource.*;
@@ -113,19 +114,26 @@ public class HypotheticalSenateDatabase {
         Map<String, Function<String[], List<Object>>> map = new LinkedHashMap<>(2);
 
         map.put("INSERT OR IGNORE INTO GroupTicketInfo (stateCode, groupID, ownerParty) VALUES (?, ?, ?)",
-                row -> Arrays.asList(
-                        row[0],
-                        row[3],
-                        row[10]
-                ));
-        map.put("INSERT INTO GroupTicketPreference (stateCode, ownerGroup, ticket, preference, preferencedGroup) " +
+                row -> {
+                    if (Integer.valueOf(row[12]) == 1) {
+                        // The first preference of the ticket is the ticket owner.
+                        return Arrays.asList(
+                                row[0],
+                                row[3],
+                                row[10]
+                        );
+                    } else {
+                        return null;
+                    }
+                });
+        map.put("INSERT INTO GroupTicketPreference (stateCode, ownerGroup, ticket, preference, preferencedCandidate) " +
                         "VALUES (?, ?, ?, ?, ?)",
                 row -> Arrays.asList(
                         row[0],
                         row[3],
                         Integer.valueOf(row[4]),
                         Integer.valueOf(row[12]),
-                        row[5]
+                        Integer.valueOf(row[5])
                 ));
 
         this.loadFromDataSource(new DataSource(GROUP_VOTING_TICKETS, downloadDirectory), map);
@@ -140,7 +148,7 @@ public class HypotheticalSenateDatabase {
                 row -> Arrays.asList(
                         row[0],
                         row[1],
-                        row[3]
+                        row[4]
                 ));
 
         this.loadFromDataSource(new DataSource(GROUP_FIRST_PREFERENCES, downloadDirectory), map);
@@ -151,7 +159,7 @@ public class HypotheticalSenateDatabase {
     }
 
     public void loadBelowTheLinePreferences(File downloadDirectory, AustralianState state) {
-        Main.out.println("Loading below the line preferences for " + state.getName() + " into database...");
+        Main.out.println("Loading below the line preferences for " + state.render() + " into database...");
         Map<String, Function<String[], List<Object>>> map = new LinkedHashMap<>(1);
 
         map.put("INSERT INTO BelowTheLineBallot (stateCode, ballotID, preference, candidateID) " +
@@ -166,6 +174,10 @@ public class HypotheticalSenateDatabase {
         this.loadFromDataSource(new DataSource(AECResource.BTL_DATA_MAP.get(state), downloadDirectory), map);
     }
 
+    /**
+     * Note that the {@link Function}s in the map may return null, which means that we should not execute a query this
+     * time.
+     */
     private void loadFromDataSource(DataSource dataSource,
                                     Map<String, Function<String[], List<Object>>> sqlInsertsAndValueExtractors) {
         if (!dataSource.isDownloaded()) {
@@ -193,16 +205,18 @@ public class HypotheticalSenateDatabase {
                             : statementValueExtractorMap.entrySet()) {
 
                         PreparedStatement preparedStatement = currentEntry.getKey();
-                        List<Object> paramValues = currentEntry.getValue().apply(nextLine);
+                        Optional<List<Object>> paramValues = Optional.ofNullable(currentEntry.getValue().apply(nextLine));
 
-                        for (int paramIndex = 0; paramIndex < paramValues.size(); paramIndex++) {
-                            Object value = paramValues.get(paramIndex);
-                            if (value instanceof String) {
-                                preparedStatement.setString(paramIndex + 1, (String) value);
-                            } else if (value instanceof Integer) {
-                                preparedStatement.setInt(paramIndex + 1, (Integer) value);
-                            } else {
-                                throw new RuntimeException("Unrecognised data type " + value.getClass());
+                        if (paramValues.isPresent()) {
+                            for (int paramIndex = 0; paramIndex < paramValues.get().size(); paramIndex++) {
+                                Object value = paramValues.get().get(paramIndex);
+                                if (value instanceof String) {
+                                    preparedStatement.setString(paramIndex + 1, (String) value);
+                                } else if (value instanceof Integer) {
+                                    preparedStatement.setInt(paramIndex + 1, (Integer) value);
+                                } else {
+                                    throw new RuntimeException("Unrecognised data type " + value.getClass());
+                                }
                             }
                         }
 

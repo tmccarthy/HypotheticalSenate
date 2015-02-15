@@ -18,13 +18,14 @@ public enum AECResource {
     GROUP_VOTING_TICKETS("http://results.aec.gov.au/17496/Website/Downloads/" +
             "SenateGroupVotingTicketsDownload-17496.txt"),
     GROUP_FIRST_PREFERENCES("http://results.aec.gov.au/17496/Website/Downloads/" +
-            "SenateFirstPrefsByStateByGroupByVoteTypeDownload-17496.txt"),
+            "SenateUseOfGvtByGroupDownload-17496.txt"),
     ACT_BTL_PREFERENCES("http://results.aec.gov.au/17496/Website/External/" +
             "SenateStateBtlDownload-17496-ACT.zip",
             "SenateStateBTLPreferences-17496-ACT.txt"),
     NSW_BTL_PREFERENCES("http://results.aec.gov.au/17496/Website/External/" +
             "SenateStateBtlDownload-17496-NSW.zip",
-            "SenateStateBTLPreferences-17496-NSW.txt"),
+            true,
+            "SenateStateBTLPreferences-17496-NSW.csv", ','),
     NT_BTL_PREFERENCES("http://results.aec.gov.au/17496/Website/External/" +
             "SenateStateBtlDownload-17496-NT.zip",
             "SenateStateBTLPreferences-17496-NT.txt"),

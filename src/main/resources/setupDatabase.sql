@@ -33,11 +33,11 @@ CREATE TABLE GroupTicketPreference(
   ownerGroup TEXT(2),
   ticket INTEGER,
   preference INTEGER,
-  preferencedGroup TEXT(2),
+  preferencedCandidate INTEGER,
   PRIMARY KEY (stateCode, ownerGroup, ticket, preference),
   FOREIGN KEY (stateCode) REFERENCES State (stateCode),
   FOREIGN KEY (ownerGroup) REFERENCES GroupTicketInfo (groupID),
-  FOREIGN KEY (preferencedGroup) REFERENCES GroupTicketInfo (groupID)
+  FOREIGN KEY (preferencedCandidate) REFERENCES Candidate (candidateID)
 );
 
 CREATE TABLE BelowTheLineBallot(
@@ -52,9 +52,9 @@ CREATE TABLE BelowTheLineBallot(
 
 CREATE TABLE AboveTheLineVotes(
   stateCode TEXT(3),
-  groupID TEXT(2),
+  groupID TEXT(5),
   votes INTEGER,
   PRIMARY KEY (stateCode, groupID),
   FOREIGN KEY (stateCode) REFERENCES State (stateCode),
-  FOREIGN KEY (groupID) REFERENCES GroupTicketInfo
+  FOREIGN KEY (groupID) REFERENCES GroupTicketInfo (groupID)
 )
