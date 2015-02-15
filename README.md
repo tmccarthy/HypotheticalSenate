@@ -69,3 +69,10 @@ Note that the LOAD commands will download reasonably large files from the AEC we
 ## Requirements
 
 This application requires JDK 8 to be installed.
+
+## The database
+
+Note that upon execution of the LOAD commands (and those that it depends on), all data regarding ballots and candidates
+will be stored in the specified SQLLite database. With an SQLite client, this database can be queried independent of
+the rest of this project. The database schema is outlined in src/main/resources/setupDatabase.sql, and the table and
+column names are pretty self-explanatory.
