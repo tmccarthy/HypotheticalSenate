@@ -8,9 +8,14 @@ Australian Electoral Commission (AEC) about the 2013 Australian Senate election.
 
 The utility is executed by invoking the run.sh bash script.
 
-The -d switch is required, and specifies the location of a SQLite database to be used.
+The -d switch is optional, and specifies the location of a SQLite database to be used. The default is to use a database
+"data.db" in the current directory.
 
-The -a switch is optional, and specifies the directory into which the AEC resources will be downloaded.
+The -a switch is optional, and specifies the directory into which the AEC resources will be downloaded. The default is
+to use "aecData" in the current directory.
+
+Alternately, you can download a release from the releases page. navigate to the bin directory and execute one of the
+executable scripts there, depending on your platform.
 
 ## Commands
 
@@ -71,7 +76,7 @@ Note that the LOAD commands will download reasonably large files from the AEC we
 
 ## Requirements
 
-This application requires JDK 8 to be installed.
+This application requires JDK 8 to build.
 
 ## The database
 

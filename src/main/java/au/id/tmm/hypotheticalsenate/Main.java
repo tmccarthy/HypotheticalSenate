@@ -8,7 +8,9 @@ import org.kohsuke.args4j.Option;
 
 import java.io.File;
 import java.io.PrintStream;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -30,7 +32,8 @@ public class Main {
 
         File databaseLocation = commandLineArgs.dbFile;
         File downloadDirectory = commandLineArgs.aecDataDownloadDirectory;
-        List<Command> commandLineCommands = commandLineArgs.arguments
+        List<Command> commandLineCommands = Optional.ofNullable(commandLineArgs.arguments)
+                .orElse(Collections.emptyList())
                 .stream()
                 .filter(StringUtils::isNotBlank)
                 .map(Command::from)
