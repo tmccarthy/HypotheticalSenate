@@ -16,6 +16,8 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
+ * Abstraction of a data source, providing easy methods for downloading, extracting and opening {@link AECResource}s.
+ *
  * @author timothy
  */
 public class DataSource {
@@ -40,6 +42,7 @@ public class DataSource {
         return new File(downloadDirectory, FilenameUtils.getName(this.aecResource.getResourceLocation().getPath()));
     }
 
+    @SuppressWarnings("ResultOfMethodCallIgnored")
     public void download() {
         try {
             if (!downloadDirectory.isDirectory()) {

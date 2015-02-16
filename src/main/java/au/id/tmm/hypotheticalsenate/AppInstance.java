@@ -2,8 +2,8 @@ package au.id.tmm.hypotheticalsenate;
 
 import au.id.tmm.hypotheticalsenate.database.HypotheticalSenateDatabase;
 import au.id.tmm.hypotheticalsenate.model.AustralianState;
-import au.id.tmm.hypotheticalsenate.model.BallotCollector;
-import au.id.tmm.hypotheticalsenate.model.BallotCounter;
+import au.id.tmm.hypotheticalsenate.controller.BallotCollector;
+import au.id.tmm.hypotheticalsenate.controller.BallotCounter;
 import au.id.tmm.hypotheticalsenate.model.Result;
 import com.google.common.collect.ImmutableMap;
 
@@ -12,6 +12,9 @@ import java.util.List;
 import java.util.Objects;
 
 /**
+ * An instance of the application. This class is distinct from {@link Main} as it assumes successfully parsed command
+ * line arguments, which are passed into the constructor.
+ *
  * @author timothy
  */
 public class AppInstance implements Runnable {
@@ -69,6 +72,7 @@ public class AppInstance implements Runnable {
         this.commands.forEach(this::runCommand);
     }
 
+    @SuppressWarnings("ResultOfMethodCallIgnored")
     private void check() {
         Objects.requireNonNull(this.databaseLocation, "The database location cannot be null");
         Objects.requireNonNull(this.downloadDirectory, "The download directory cannot be null");
@@ -119,7 +123,6 @@ public class AppInstance implements Runnable {
     }
 
     private void runCountCommand(AustralianState state) {
-
         Main.out.println("Performing count for " + state.render());
 
         BallotCollector ballotCollector = new BallotCollector(state)

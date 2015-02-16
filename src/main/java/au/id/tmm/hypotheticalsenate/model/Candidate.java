@@ -6,13 +6,13 @@ import com.google.common.collect.ComparisonChain;
  * @author timothy
  */
 public class Candidate implements Comparable<Candidate> {
-    private final int candiateID;
+    private final int candidateID;
     private final String givenNames;
     private final String surname;
     private final String partyID;
 
-    public Candidate(int candiateID, String givenNames, String surname, String partyID) {
-        this.candiateID = candiateID;
+    public Candidate(int candidateID, String givenNames, String surname, String partyID) {
+        this.candidateID = candidateID;
         this.givenNames = givenNames;
         this.surname = surname;
         this.partyID = partyID;
@@ -24,12 +24,12 @@ public class Candidate implements Comparable<Candidate> {
                 .compare(this.surname, other.surname)
                 .compare(this.givenNames, other.givenNames)
                 .compare(this.partyID, other.partyID)
-                .compare(this.candiateID, other.candiateID)
+                .compare(this.candidateID, other.candidateID)
                 .result();
     }
 
     public int getCandidateID() {
-        return candiateID;
+        return candidateID;
     }
 
     public String getGivenNames() {

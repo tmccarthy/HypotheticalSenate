@@ -1,42 +1,45 @@
 package au.id.tmm.hypotheticalsenate.model;
 
-import gnu.trove.map.TIntDoubleMap;
-import gnu.trove.map.hash.TIntDoubleHashMap;
+import gnu.trove.map.TObjectDoubleMap;
+import gnu.trove.map.hash.TObjectDoubleHashMap;
 
 /**
+ * Essentially a wrapper around a map relating a {@link Candidate} to the number of votes they have, except that this
+ * class also keeps track of the {@code Candidate}s with the least and most votes.
+ *
  * @author timothy
  */
 public class VoteCount {
 
-    private TIntDoubleMap votes = new TIntDoubleHashMap();
-    private int lowestVoteCandidateID;
-    private int highestVoteCandidateID;
+    private TObjectDoubleMap<Candidate> votes = new TObjectDoubleHashMap<>();
+    private Candidate lowestVoteCandidate;
+    private Candidate highestVoteCandidate;
 
-    public void put(int candidateID, double votes) {
-        this.votes.put(candidateID, votes);
+    public void put(Candidate candidate, double votes) {
+        this.votes.put(candidate, votes);
 
-        if (this.lowestVoteCandidateID == 0 || votes < this.votes.get(lowestVoteCandidateID)) {
-            this.lowestVoteCandidateID = candidateID;
+        if (this.lowestVoteCandidate == null || votes < this.votes.get(lowestVoteCandidate)) {
+            this.lowestVoteCandidate = candidate;
         }
 
-        if (this.highestVoteCandidateID == 0 || votes > this.votes.get(highestVoteCandidateID)) {
-            this.highestVoteCandidateID = candidateID;
+        if (this.highestVoteCandidate == null || votes > this.votes.get(highestVoteCandidate)) {
+            this.highestVoteCandidate = candidate;
         }
     }
 
-    public double get(int key) {
-        return votes.get(key);
+    public double get(Candidate candidate) {
+        return votes.get(candidate);
     }
 
-    public TIntDoubleMap getVotes() {
+    public TObjectDoubleMap<Candidate> getVotes() {
         return votes;
     }
 
-    public int getLowestVoteCandidateID() {
-        return lowestVoteCandidateID;
+    public Candidate getLowestVoteCandidate() {
+        return lowestVoteCandidate;
     }
 
-    public int getHighestVoteCandidateID() {
-        return highestVoteCandidateID;
+    public Candidate getHighestVoteCandidate() {
+        return highestVoteCandidate;
     }
 }

@@ -1,5 +1,9 @@
-package au.id.tmm.hypotheticalsenate.model;
+package au.id.tmm.hypotheticalsenate.controller;
 
+import au.id.tmm.hypotheticalsenate.model.Ballot;
+import au.id.tmm.hypotheticalsenate.model.Candidate;
+import au.id.tmm.hypotheticalsenate.model.Result;
+import au.id.tmm.hypotheticalsenate.model.VoteCount;
 import gnu.trove.map.TIntObjectMap;
 import gnu.trove.map.hash.TIntObjectHashMap;
 
@@ -9,9 +13,14 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalInt;
 
 /**
+ * An engine for performing a count, given a number of vacancies, a set of candidates and a list of ballots.
+ * <p>
+ * Once run, a {@code BallotCounter} cannot be run again.
+ *
  * @author timothy
  */
 public class BallotCounter {
@@ -19,13 +28,15 @@ public class BallotCounter {
     private boolean hasRun = false;
 
     private final int vacancies;
-    private int quota;
+    private final int quota;
 
     private final TIntObjectMap<Candidate> idToCandidateMap;
-    private final Map<Integer, List<Ballot>> candidateBallots = new HashMap<>();
+    private final Map<Candidate, List<Ballot>> candidateBallots = new HashMap<>();
 
     private final List<CountStep> steps = new LinkedList<>();
     private final List<Candidate> electedCandidates = new LinkedList<>();
+
+    private int currentCountStepNumber = 0;
 
     public BallotCounter(int vacancies, Collection<Candidate> candidates, List<Ballot> ballots) {
         this.vacancies = vacancies;
@@ -39,11 +50,11 @@ public class BallotCounter {
 
         // Initialise candidate lists.
         candidates.forEach(candidate ->
-                this.candidateBallots.put(candidate.getCandidateID(), new ArrayList<>(2 * quota)));
+                this.candidateBallots.put(candidate, new ArrayList<>(2 * quota)));
 
         ballots.forEach(ballot ->
                 ballot.computeCurrentCandidate().ifPresent(firstPreferencedCandidate ->
-                        this.candidateBallots.get(firstPreferencedCandidate).add(ballot)));
+                        this.candidateBallots.get(this.idToCandidateMap.get(firstPreferencedCandidate)).add(ballot)));
     }
 
     public Result run() {
@@ -52,6 +63,7 @@ public class BallotCounter {
         this.steps.add(this.initialAllocationStep());
 
         do {
+            this.currentCountStepNumber ++;
             this.steps.add(this.normalCountStep());
         } while (this.electedCandidates.size() < this.vacancies);
 
@@ -67,7 +79,7 @@ public class BallotCounter {
     }
 
     private CountStep initialAllocationStep() {
-        CountStep initialCountStep = new CountStep();
+        CountStep initialCountStep = new CountStep(this.currentCountStepNumber);
 
         initialCountStep.setVotes(this.currentCount().getVotes());
 
@@ -75,28 +87,26 @@ public class BallotCounter {
     }
 
     private CountStep normalCountStep() {
-        CountStep countStep = new CountStep();
+        CountStep countStep = new CountStep(this.currentCountStepNumber);
         VoteCount currentCount = this.currentCount();
 
-        if (currentCount.get(currentCount.getHighestVoteCandidateID()) > quota) {
+        if (currentCount.get(currentCount.getHighestVoteCandidate()) > quota) {
             // A candidate has exceeded quota
-            countStep.setCandidateElected(this.idToCandidateMap.get(currentCount.getHighestVoteCandidateID()));
+            countStep.setCandidateElected(currentCount.getHighestVoteCandidate());
 
-            this.distributeAfterElectionAndRemove(currentCount.getHighestVoteCandidateID());
+            this.distributeAfterElectionAndRemove(currentCount.getHighestVoteCandidate());
         } else if (this.candidateBallots.size() == 1) {
             // There is only one candidate left
-            int lastCandidate = this.candidateBallots.keySet().stream().findFirst().get();
-            countStep.setCandidateElected(this.idToCandidateMap.get(
-                    lastCandidate
-            ));
+            Candidate lastCandidate = this.candidateBallots.keySet().stream().findFirst().get();
+            countStep.setCandidateElected(lastCandidate);
 
             assert this.electedCandidates.size() == this.vacancies;
 
         } else {
             // We must exclude a candidate
-            countStep.setCandidateExcluded(this.idToCandidateMap.get(currentCount.getLowestVoteCandidateID()));
+            countStep.setCandidateExcluded(currentCount.getLowestVoteCandidate());
 
-            this.distributeAfterExclusionAndRemove(currentCount.getLowestVoteCandidateID());
+            this.distributeAfterExclusionAndRemove(currentCount.getLowestVoteCandidate());
         }
 
         countStep.getCandidateElected().ifPresent(this.electedCandidates::add);
@@ -108,8 +118,13 @@ public class BallotCounter {
         return countStep;
     }
 
-    private void distributeAfterElectionAndRemove(int candidateID) {
-        List<Ballot> candidateBallots = this.candidateBallots.get(candidateID);
+    /**
+     * Distributes votes from a candidate once they have been elected, and then removes them from the list of current
+     * candidates. This is a different process from distributing votes from an excluded candidate as we must compute the
+     * transfer value of the surplus votes.
+     */
+    private void distributeAfterElectionAndRemove(Candidate candidate) {
+        List<Ballot> candidateBallots = this.candidateBallots.get(candidate);
         double totalVotes = tallyBallots(candidateBallots);
         double surplus = totalVotes - quota;
 
@@ -119,28 +134,31 @@ public class BallotCounter {
             candidateBallots.forEach(ballot -> distributeBallot(ballot, transferFactor));
         }
 
-        this.candidateBallots.remove(candidateID);
+        this.candidateBallots.remove(candidate);
     }
 
-    private void distributeAfterExclusionAndRemove(int candidateID) {
-        this.candidateBallots.get(candidateID).forEach(ballot -> distributeBallot(ballot, 1.0f));
+    private void distributeAfterExclusionAndRemove(Candidate candidate) {
+        this.candidateBallots.get(candidate).forEach(ballot -> distributeBallot(ballot, 1.0f));
 
-        this.candidateBallots.remove(candidateID);
+        this.candidateBallots.remove(candidate);
     }
 
     private void distributeBallot(Ballot ballot, double transferFactor) {
         ballot.incrementCurrentPreferenceIndex();
-        OptionalInt newCandidate = ballot.computeCurrentCandidate();
+        OptionalInt newCandidateID = ballot.computeCurrentCandidate();
+        Optional<Candidate> newCandidate = newCandidateID.isPresent()
+                ? Optional.of(this.idToCandidateMap.get(newCandidateID.getAsInt()))
+                : Optional.empty();
 
         if (!newCandidate.isPresent()) {
             // The ballot has expired
             return;
-        } else if (!this.candidateBallots.containsKey(newCandidate.getAsInt())) {
+        } else if (!this.candidateBallots.containsKey(newCandidate.get())) {
             // The next preference has already been either excluded or elected, so we try to distribute again.
             this.distributeBallot(ballot, transferFactor);
         } else {
             ballot.multiplyCurrentWeightBy(transferFactor);
-            this.candidateBallots.get(newCandidate.getAsInt()).add(ballot);
+            this.candidateBallots.get(newCandidate.get()).add(ballot);
         }
     }
 

@@ -12,6 +12,10 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
+ * Main class for the application, housing the {@link #main(String[])} method. This class exposes the {@link #out} and
+ * {@link #err} {@link PrintStream}s to centralise output and hopefully make any future effort to put a logging
+ * framework in place easier.
+ *
  * @author timothy
  */
 public class Main {
@@ -35,6 +39,9 @@ public class Main {
         new AppInstance(databaseLocation, downloadDirectory, commandLineCommands).run();
     }
 
+    /**
+     * Uses args4j to parse the command line arguments.
+     */
     private static CommandLineArgs extractCommandLineArgs(String[] args) {
         CmdLineParser parser = null;
         CommandLineArgs commandLineArgs;
@@ -57,12 +64,13 @@ public class Main {
     private static class CommandLineArgs {
         @Option(name = "-d",
                 aliases = {"--database", "--db"},
-                usage = "The location of the senate results database")
-        private File dbFile;
+                usage = "The location of the senate results database. Default value is data.db")
+        private File dbFile = new File("data.db");
 
         @Option(name = "-a",
                 aliases = "--aecDownloads",
-                usage = "The directory into which the raw data files from the AEC will be downloaded")
+                usage = "The directory into which the raw data files from the AEC will be downloaded. Default " +
+                        "value is aecData")
         private File aecDataDownloadDirectory = new File("aecData");
 
         @Argument(multiValued = true,

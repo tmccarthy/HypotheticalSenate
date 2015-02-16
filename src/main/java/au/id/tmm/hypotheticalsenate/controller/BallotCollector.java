@@ -1,6 +1,10 @@
-package au.id.tmm.hypotheticalsenate.model;
+package au.id.tmm.hypotheticalsenate.controller;
 
 import au.id.tmm.hypotheticalsenate.database.HypotheticalSenateDatabase;
+import au.id.tmm.hypotheticalsenate.model.AustralianState;
+import au.id.tmm.hypotheticalsenate.model.Ballot;
+import au.id.tmm.hypotheticalsenate.model.Candidate;
+import au.id.tmm.hypotheticalsenate.model.GroupVotingTicket;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.ListMultimap;
 import gnu.trove.iterator.TIntIntIterator;
@@ -15,13 +19,19 @@ import org.apache.commons.lang3.mutable.MutableInt;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.TreeSet;
 
 /**
+ * Engine for collecting {@link Ballot}s and {@link Candidate}s from a {@link HypotheticalSenateDatabase}.
+ * <p>
+ * Note that subclasses are given the opportunity to mutate the loaded ballots via the
+ * {@link #customiseATLBallots(List)} and {@link #customiseBTLBallots(List)} methods, which do nothing by default but
+ * can be overridden. Note also that the process for translating the preferences in the database to the candidate order
+ * used in a {@link Ballot} is performed in {@link #candidateOrderFromPreferences(TIntIntMap)}.
+ *
  * @author timothy
  */
 public class BallotCollector {
@@ -39,8 +49,9 @@ public class BallotCollector {
     public BallotCollector loadCandidates(HypotheticalSenateDatabase database) {
         candidates = new TreeSet<>();
 
-        database.runWithConnection(connection -> {
+        database.runWithConnection((connection, resources) -> {
             Statement statement = connection.createStatement();
+            resources.add(statement);
             statement.setFetchSize(FETCH_SIZE);
 
             ResultSet resultSet = statement.executeQuery(
@@ -62,8 +73,6 @@ public class BallotCollector {
                         resultSet.getString("partyID")
                 ));
             }
-
-            return Arrays.asList(statement);
         });
 
         return this;
@@ -93,8 +102,9 @@ public class BallotCollector {
         TObjectIntMap<String> groupFirstPreferences = new TObjectIntHashMap<>(groupCount);
         ListMultimap<String, GroupVotingTicket> groupTicketMap = LinkedListMultimap.create(groupCount);
 
-        database.runWithConnection(connection -> {
+        database.runWithConnection((connection, resources) -> {
             Statement statement = connection.createStatement();
+            resources.add(statement);
             statement.setFetchSize(FETCH_SIZE);
 
             ResultSet atlVotesResultSet = statement.executeQuery(
@@ -136,8 +146,6 @@ public class BallotCollector {
                             groupPreferencesResultSet.getInt("preference"));
                 } while(groupPreferencesResultSet.next());
             }
-
-            return Arrays.asList(statement);
         });
 
         groupTicketMap.asMap().forEach((group, tickets) -> {
@@ -165,8 +173,9 @@ public class BallotCollector {
 
         List<Ballot> ballots = new ArrayList<>(numBallots);
 
-        database.runWithConnection(connection -> {
+        database.runWithConnection((connection, resources) -> {
             Statement statement = connection.createStatement();
+            resources.add(statement);
             statement.setFetchSize(FETCH_SIZE);
 
             ResultSet resultSet = statement.executeQuery(
@@ -193,8 +202,6 @@ public class BallotCollector {
                     currentBallotPreferences.put(resultSet.getInt("candidateID"), resultSet.getInt("preference"));
                 } while (resultSet.next());
             }
-
-            return Arrays.asList(statement);
         });
 
         return ballots;
@@ -207,16 +214,16 @@ public class BallotCollector {
     private int computeNumBallots(HypotheticalSenateDatabase database) {
         MutableInt numBallots = new MutableInt();
 
-        database.runWithConnection(connection -> {
+        database.runWithConnection((connection, resources) -> {
             Statement statement = connection.createStatement();
+            resources.add(statement);
+
             numBallots.setValue(
                     statement.executeQuery(
                             "SELECT COUNT(DISTINCT ballotID) AS numBallots " +
                                     "FROM BelowTheLineBallot " +
                                     "WHERE stateCode = '" + this.state.getCode() + "'")
                             .getLong("numBallots"));
-
-            return Arrays.asList(statement);
         });
 
         return numBallots.intValue();
@@ -225,16 +232,16 @@ public class BallotCollector {
     private int computeNumCandidates(HypotheticalSenateDatabase database) {
         MutableInt numCandidates = new MutableInt();
 
-        database.runWithConnection(connection -> {
+        database.runWithConnection((connection, resources) -> {
             Statement statement = connection.createStatement();
+            resources.add(statement);
+
             numCandidates.setValue(
                     statement.executeQuery(
                             "SELECT COUNT(DISTINCT candidateID) AS numCandidates " +
                                     "FROM BelowTheLineBallot " +
                                     "WHERE stateCode = '" + this.state.getCode() + "'")
                             .getLong("numCandidates"));
-
-            return Arrays.asList(statement);
         });
 
         return numCandidates.intValue();
@@ -243,8 +250,10 @@ public class BallotCollector {
     private int computeNumGroups(HypotheticalSenateDatabase database) {
         MutableInt groupCount = new MutableInt();
 
-        database.runWithConnection(connection -> {
+        database.runWithConnection((connection, resources) -> {
             Statement statement = connection.createStatement();
+            resources.add(statement);
+
             statement.setFetchSize(FETCH_SIZE);
 
             ResultSet groupCountResult = statement.executeQuery(
@@ -255,13 +264,18 @@ public class BallotCollector {
 
             groupCountResult.next();
             groupCount.setValue(groupCountResult.getInt("groupCount"));
-
-            return Arrays.asList(statement);
         });
 
         return groupCount.intValue();
     }
 
+    /**
+     * Converts the surjective relationship between candidates and preferences for a single ballot into a candidate
+     * order. An empty {@link Optional} is returned if the vote is considered to be invalid and hence ignored.
+     * <p>
+     * Currently a ballot with any duplicated preferences is considered invalid. More work should be done to make this
+     * more closely represent the AEC's processes for determining vote formality.
+     */
     protected Optional<TIntList> candidateOrderFromPreferences(TIntIntMap candidateToPreferenceMap) {
         TIntIntMap preferenceToCandidateMap = new TIntIntHashMap(candidateToPreferenceMap.size());
 

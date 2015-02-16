@@ -9,6 +9,8 @@ import java.net.URL;
 import java.util.Optional;
 
 /**
+ * Enumeration of resources from the AEC used in this project.
+ *
  * @author timothy
  */
 public enum AECResource {

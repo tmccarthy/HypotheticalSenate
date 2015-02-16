@@ -9,6 +9,12 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
+ * Enumerates the commands that can be executed by the application. This is a somewhat unwieldy way of going about this
+ * that could probably be replaced by gradle tasks in the future.
+ * <p>
+ * Each command is made up of a name, a description and optionally a list of constituent commands. The constituent
+ * command framework allows for single commands that combine a number of related tasks.
+ *
  * @author timothy
  */
 public enum Command {
@@ -41,6 +47,10 @@ public enum Command {
             LOAD_BTL_VOTES_TAS,
             LOAD_BTL_VOTES_VIC,
             LOAD_BTL_VOTES_WA),
+    SETUP_DATABASE("setupDatabase", "Sets up the database.",
+            CREATE_SCHEMA,
+            LOAD_EASY,
+            LOAD_BTL_VOTES_ALL),
     COUNT_ACT("countACT", "Counts all the votes for the ACT"),
     COUNT_NSW("countNSW", "Counts all the votes for NSW"),
     COUNT_NT("countNT", "Counts all the votes for the NT"),
@@ -102,6 +112,10 @@ public enum Command {
                 System.lineSeparator() + "\t");
     }
 
+    /**
+     * Perform a case-insensitive matching of the given {@link String} to a {@code Command}.
+     * @throws IllegalArgumentException if no matching Command could be found
+     */
     public static Command from(String name) {
         return EnumSet.allOf(Command.class)
                 .stream()

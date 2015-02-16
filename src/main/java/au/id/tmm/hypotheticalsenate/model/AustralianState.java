@@ -1,6 +1,8 @@
 package au.id.tmm.hypotheticalsenate.model;
 
 /**
+ * A strictly-incorrectly named class used to represent both Australian states and territories.
+ *
  * @author timothy
  */
 public enum AustralianState {
@@ -32,6 +34,9 @@ public enum AustralianState {
         this(code, name, normalVacancies, false);
     }
 
+    /**
+     * Returns the number of vacancies at a normal half-senate election for this state or territory
+     */
     public int getNormalVacancies() {
         return normalVacancies;
     }
@@ -44,6 +49,9 @@ public enum AustralianState {
         return name;
     }
 
+    /**
+     * Renders this state or territory's name, including the definite article if necessary.
+     */
     public String render() {
         return (this.definiteArticle ? "the " : "") + this.name;
     }
