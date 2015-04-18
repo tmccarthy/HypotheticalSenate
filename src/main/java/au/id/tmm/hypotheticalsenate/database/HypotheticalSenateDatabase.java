@@ -1,13 +1,15 @@
 package au.id.tmm.hypotheticalsenate.database;
 
 import au.com.bytecode.opencsv.CSVReader;
-import au.id.tmm.hypotheticalsenate.Main;
+import au.id.tmm.hypotheticalsenate.GUIMain;
 import au.id.tmm.hypotheticalsenate.model.AustralianState;
+import au.id.tmm.hypotheticalsenate.model.Election;
 import org.apache.commons.io.IOUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -21,8 +23,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
-import static au.id.tmm.hypotheticalsenate.database.AECResource.*;
-
 /**
  * @author timothy
  */
@@ -30,7 +30,6 @@ public class HypotheticalSenateDatabase {
 
     private static final String SQLITE_DRIVER_NAME = "org.sqlite.JDBC";
     private static final String CREATE_TABLES_SCRIPT_LOCATION = "/setupDatabase.sql";
-    public static final int COMMIT_EVERY = 1000;
 
     private final String databaseUrl;
     private final File dbFile;
@@ -46,17 +45,30 @@ public class HypotheticalSenateDatabase {
         }
     }
 
-    public void delete() {
-        Main.out.println("Deleting old database...");
+    public void clear() {
+        GUIMain.out.println("Clearing database...");
         if (this.dbFile.exists()) {
-            if (!this.dbFile.delete()) {
-                throw new RuntimeException("Unable to delete the file at " + dbFile.getPath());
-            }
+            this.runWithConnection((connection, resources) -> {
+                Statement statement = connection.createStatement();
+
+                resources.add(statement);
+
+                statement.executeUpdate("PRAGMA writable_schema = 1;");
+                statement.executeUpdate("DELETE FROM sqlite_master WHERE type IN ('table', 'index', 'trigger')");
+                statement.executeUpdate("PRAGMA writable_schema = 0;");
+                statement.executeUpdate("VACUUM;");
+            });
         }
     }
 
+    public void setup() {
+        this.createTables();
+        this.loadStates();
+        this.loadElections();
+    }
+
     public void createTables() {
-        Main.out.println("Creating database tables...");
+        GUIMain.out.println("Creating database tables...");
         this.runWithConnection((connection, resources) -> {
             Statement statement = connection.createStatement();
 
@@ -68,7 +80,7 @@ public class HypotheticalSenateDatabase {
     }
 
     public void loadStates() {
-        Main.out.println("Loading states into database...");
+        GUIMain.out.println("Loading states into database...");
         String insertStatement = "INSERT INTO State (stateCode, stateName) VALUES (?, ?);";
 
         this.runWithConnection((connection, resources) -> {
@@ -86,37 +98,61 @@ public class HypotheticalSenateDatabase {
         });
     }
 
-    public void loadPartiesAndCandidates(File downloadDirectory) {
-        Main.out.println("Loading parties and candidates into database...");
+    public void loadElections() {
+        GUIMain.out.println("Loading elections into database...");
+        String insertStatement = "INSERT INTO Election (electionID, date, name) VALUES (?, ?, ?);";
+
+        this.runWithConnection((connection, resources) -> {
+            connection.setAutoCommit(false);
+            PreparedStatement preparedStatement = connection.prepareStatement(insertStatement);
+            resources.add(preparedStatement);
+
+            for (Election election : Election.values()) {
+                preparedStatement.setInt(1, election.getID());
+                preparedStatement.setDate(2, new Date(election.getDate().getTime()));
+                preparedStatement.setString(3, election.getDescription());
+                preparedStatement.execute();
+            }
+
+            connection.commit();
+        });
+    }
+
+    public void loadPartiesAndCandidates(File downloadDirectory, Election election) {
+        GUIMain.out.println("Loading parties and candidates into database...");
 
         Map<String, Function<String[], List<Object>>> map = new LinkedHashMap<>(2);
 
-        map.put("INSERT OR IGNORE INTO Party (partyID, partyName) VALUES (?, ?)",
+        map.put("INSERT OR IGNORE INTO Party (electionID, partyID, partyName) VALUES (?, ?, ?)",
                 row -> Arrays.asList(
+                        election.getID(),
                         row[1],
                         row[2]
                 ));
-        map.put("INSERT INTO Candidate (candidateID, partyID, givenName, surname) VALUES (?, ?, ?, ?)",
+        map.put("INSERT INTO Candidate (electionID, candidateID, partyID, givenName, surname) VALUES (?, ?, ?, ?, ?)",
                 row -> Arrays.asList(
+                        election.getID(),
                         Integer.valueOf(row[3]),
                         row[1],
                         row[5],
                         row[4]
                 ));
 
-        this.loadFromDataSource(new DataSource(SENATE_CANDIDATES, downloadDirectory), map);
+        this.loadFromDataSource(new DataSource(AECResource.candidates(election), downloadDirectory), map);
     }
 
-    public void loadGroupVotingTickets(File downloadDirectory) {
-        Main.out.println("Loading group voting tickets into database...");
+    public void loadGroupVotingTickets(File downloadDirectory, Election election) {
+        GUIMain.out.println("Loading group voting tickets into database...");
 
         Map<String, Function<String[], List<Object>>> map = new LinkedHashMap<>(2);
 
-        map.put("INSERT OR IGNORE INTO GroupTicketInfo (stateCode, groupID, ownerParty) VALUES (?, ?, ?)",
+        map.put("INSERT OR IGNORE INTO GroupTicketInfo (electionID, stateCode, groupID, ownerParty) " +
+                        "VALUES (?, ?, ?, ?)",
                 row -> {
                     if (Integer.valueOf(row[12]) == 1) {
                         // The first preference of the ticket is the ticket owner.
                         return Arrays.asList(
+                                election.getID(),
                                 row[0],
                                 row[3],
                                 row[10]
@@ -125,9 +161,11 @@ public class HypotheticalSenateDatabase {
                         return null;
                     }
                 });
-        map.put("INSERT INTO GroupTicketPreference (stateCode, ownerGroup, ticket, preference, preferencedCandidate) " +
-                        "VALUES (?, ?, ?, ?, ?)",
+        map.put("INSERT INTO GroupTicketPreference " +
+                        "(electionID, stateCode, ownerGroup, ticket, preference, preferencedCandidate) " +
+                        "VALUES (?, ?, ?, ?, ?, ?)",
                 row -> Arrays.asList(
+                        election.getID(),
                         row[0],
                         row[3],
                         Integer.valueOf(row[4]),
@@ -135,42 +173,55 @@ public class HypotheticalSenateDatabase {
                         Integer.valueOf(row[5])
                 ));
 
-        this.loadFromDataSource(new DataSource(GROUP_VOTING_TICKETS, downloadDirectory), map);
+        this.loadFromDataSource(new DataSource(AECResource.groupVotingTickets(election), downloadDirectory), map);
     }
 
-    public void loadAboveTheLineVotes(File downloadDirectory) {
-        Main.out.println("Loading above the line votes into database...");
+    public void loadAboveTheLineVotes(File downloadDirectory, Election election) {
+        GUIMain.out.println("Loading above the line votes into database...");
 
         Map<String, Function<String[], List<Object>>> map = new LinkedHashMap<>(1);
 
-        map.put("INSERT INTO AboveTheLineVotes (stateCode, groupID, votes) VALUES (?, ?, ?)",
+        map.put("INSERT INTO AboveTheLineVotes (electionID, stateCode, groupID, votes) VALUES (?, ?, ?, ?)",
                 row -> Arrays.asList(
+                        election.getID(),
                         row[0],
                         row[1],
                         row[4]
                 ));
 
-        this.loadFromDataSource(new DataSource(GROUP_FIRST_PREFERENCES, downloadDirectory), map);
+        this.loadFromDataSource(new DataSource(AECResource.groupFirstPreferences(election), downloadDirectory), map);
     }
 
-    public void loadBelowTheLinePreferences(File downloadDirectory, Collection<? extends AustralianState> states) {
-        states.forEach(state -> loadBelowTheLinePreferences(downloadDirectory, state));
+    public void loadBelowTheLinePreferences(File downloadDirectory, Collection<? extends AustralianState> states, Election election) {
+        states.forEach(state -> loadBelowTheLinePreferences(downloadDirectory, state, election));
     }
 
-    public void loadBelowTheLinePreferences(File downloadDirectory, AustralianState state) {
-        Main.out.println("Loading below the line preferences for " + state.render() + " into database...");
+    public void loadBelowTheLinePreferences(File downloadDirectory, AustralianState state, Election election) {
+        GUIMain.out.println("Loading below the line preferences for " + state.render() + " into database...");
         Map<String, Function<String[], List<Object>>> map = new LinkedHashMap<>(1);
 
-        map.put("INSERT INTO BelowTheLineBallot (stateCode, ballotID, preference, candidateID) " +
-                "VALUES (?, ?, ?, ?)",
-                row -> Arrays.asList(
-                        state.getCode(),
-                        row[2].trim() + "," + row[3],
-                        row[1],
-                        row[0]
-                ));
+        map.put("INSERT INTO BelowTheLineBallot " +
+                        "(electionID, stateCode, ballotID, batch, paper, preference, candidateID) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                row -> {
+                    Integer batch = Integer.valueOf(row[2]);
+                    Integer paper = Integer.valueOf(row[3]);
+                    return Arrays.asList(
+                            election.getID(),
+                            state.getCode(),
+                            pairingFunction(batch, paper),
+                            batch,
+                            paper,
+                            row[1],
+                            row[0]
+                    );
+                });
 
-        this.loadFromDataSource(new DataSource(AECResource.BTL_DATA_MAP.get(state), downloadDirectory), map);
+        this.loadFromDataSource(new DataSource(AECResource.btlPreferences(election, state), downloadDirectory), map);
+    }
+
+    private int pairingFunction(int a, int b) {
+        return (a + b) * (a + b + 1) / 2 + a;
     }
 
     /**

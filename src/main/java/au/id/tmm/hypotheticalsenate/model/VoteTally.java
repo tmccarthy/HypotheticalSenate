@@ -9,7 +9,7 @@ import gnu.trove.map.hash.TObjectDoubleHashMap;
  *
  * @author timothy
  */
-public class VoteCount {
+public class VoteTally {
 
     private TObjectDoubleMap<Candidate> votes = new TObjectDoubleHashMap<>();
     private Candidate lowestVoteCandidate;

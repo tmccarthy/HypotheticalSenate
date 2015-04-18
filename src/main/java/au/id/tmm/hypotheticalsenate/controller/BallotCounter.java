@@ -3,7 +3,7 @@ package au.id.tmm.hypotheticalsenate.controller;
 import au.id.tmm.hypotheticalsenate.model.Ballot;
 import au.id.tmm.hypotheticalsenate.model.Candidate;
 import au.id.tmm.hypotheticalsenate.model.Result;
-import au.id.tmm.hypotheticalsenate.model.VoteCount;
+import au.id.tmm.hypotheticalsenate.model.VoteTally;
 import gnu.trove.map.TIntObjectMap;
 import gnu.trove.map.hash.TIntObjectHashMap;
 
@@ -88,7 +88,7 @@ public class BallotCounter {
 
     private CountStep normalCountStep() {
         CountStep countStep = new CountStep(this.currentCountStepNumber);
-        VoteCount currentCount = this.currentCount();
+        VoteTally currentCount = this.currentCount();
 
         if (currentCount.get(currentCount.getHighestVoteCandidate()) > quota) {
             // A candidate has exceeded quota
@@ -171,8 +171,8 @@ public class BallotCounter {
         return result;
     }
 
-    private VoteCount currentCount() {
-        VoteCount returnedCount = new VoteCount();
+    private VoteTally currentCount() {
+        VoteTally returnedCount = new VoteTally();
 
         this.candidateBallots.forEach((candidateID, ballots) -> returnedCount.put(
                 candidateID,

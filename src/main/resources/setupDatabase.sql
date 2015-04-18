@@ -1,7 +1,15 @@
+CREATE TABLE Election(
+  electionID INTEGER UNIQUE,
+  date TEXT(12),
+  name TEXT
+);
+
 CREATE TABLE Party(
-  partyID TEXT(5) UNIQUE,
+  electionID INTEGER,
+  partyID TEXT(5),
   partyName TEXT,
-  PRIMARY KEY(partyID)
+  PRIMARY KEY (electionID, partyID),
+  FOREIGN KEY (electionID) REFERENCES Election (electionID)
 );
 
 CREATE TABLE State(
@@ -11,24 +19,29 @@ CREATE TABLE State(
 );
 
 CREATE TABLE Candidate(
-  candidateID INTEGER UNIQUE,
+  electionID INTEGER,
+  candidateID INTEGER,
   partyID TEXT(5),
   givenName TEXT,
   surname TEXT,
-  PRIMARY KEY (candidateID),
-  FOREIGN KEY (partyID) REFERENCES Party (partyID)
+  PRIMARY KEY (electionID, candidateID),
+  FOREIGN KEY (partyID) REFERENCES Party (partyID),
+  FOREIGN KEY (electionID) REFERENCES Election (electionID)
 );
 
 CREATE TABLE GroupTicketInfo(
+  electionID INTEGER,
   stateCode TEXT(3),
   groupID TEXT(2),
   ownerParty TEXT(5),
-  PRIMARY KEY (stateCode, groupID),
+  PRIMARY KEY (electionID, stateCode, groupID),
   FOREIGN KEY (stateCode) REFERENCES State (stateCode),
-  FOREIGN KEY (ownerParty) REFERENCES Party (partyID)
+  FOREIGN KEY (ownerParty) REFERENCES Party (partyID),
+  FOREIGN KEY (electionID) REFERENCES Election (electionID)
 );
 
 CREATE TABLE GroupTicketPreference(
+  electionID INTEGER,
   stateCode TEXT(3),
   ownerGroup TEXT(2),
   ticket INTEGER,
@@ -37,24 +50,31 @@ CREATE TABLE GroupTicketPreference(
   PRIMARY KEY (stateCode, ownerGroup, ticket, preference),
   FOREIGN KEY (stateCode) REFERENCES State (stateCode),
   FOREIGN KEY (ownerGroup) REFERENCES GroupTicketInfo (groupID),
-  FOREIGN KEY (preferencedCandidate) REFERENCES Candidate (candidateID)
+  FOREIGN KEY (preferencedCandidate) REFERENCES Candidate (candidateID),
+  FOREIGN KEY (electionID) REFERENCES Election (electionID)
 );
 
 CREATE TABLE BelowTheLineBallot(
+  electionID INTEGER,
   stateCode TEXT(3),
-  ballotID TEXT(12),
+  ballotID INTEGER,
+  batch INTEGER,
+  paper INTEGER,
   candidateID INTEGER,
   preference INTEGER,
   PRIMARY KEY (stateCode, ballotID, candidateID),
   FOREIGN KEY (stateCode) REFERENCES State (stateCode),
-  FOREIGN KEY (candidateID) REFERENCES Candidate (candidateID)
+  FOREIGN KEY (candidateID) REFERENCES Candidate (candidateID),
+  FOREIGN KEY (electionID) REFERENCES Election (electionID)
 );
 
 CREATE TABLE AboveTheLineVotes(
+  electionID INTEGER,
   stateCode TEXT(3),
   groupID TEXT(5),
   votes INTEGER,
   PRIMARY KEY (stateCode, groupID),
   FOREIGN KEY (stateCode) REFERENCES State (stateCode),
-  FOREIGN KEY (groupID) REFERENCES GroupTicketInfo (groupID)
+  FOREIGN KEY (groupID) REFERENCES GroupTicketInfo (groupID),
+  FOREIGN KEY (electionID) REFERENCES Election (electionID)
 )

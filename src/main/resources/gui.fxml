@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="au.id.tmm.hypotheticalsenate.view.controller.GUIController">
+    <children>
+        <StackPane layoutX="-0.076171875" minWidth="-Infinity" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+            <children>
+                <GridPane layoutX="-0.0380859375">
+                    <columnConstraints>
+                        <ColumnConstraints halignment="CENTER" hgrow="ALWAYS" minWidth="10.0" percentWidth="100.0" />
+                    </columnConstraints>
+                    <rowConstraints>
+                        <RowConstraints maxHeight="58.0" minHeight="10.0" prefHeight="55.0" vgrow="SOMETIMES" />
+                        <RowConstraints maxHeight="90.0" minHeight="10.0" prefHeight="84.0" vgrow="SOMETIMES" />
+                        <RowConstraints maxHeight="241.0" minHeight="10.0" prefHeight="228.0" vgrow="ALWAYS" />
+                    </rowConstraints>
+                    <children>
+                        <GridPane GridPane.rowIndex="1">
+                            <columnConstraints>
+                                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" />
+                                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="180.0" />
+                                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                            </columnConstraints>
+                            <rowConstraints>
+                                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                            </rowConstraints>
+                            <children>
+                                <ChoiceBox fx:id="taskPicker" prefWidth="180.0" GridPane.columnIndex="1" />
+                                <Label fx:id="taskLbl" text="Task" />
+                                <Label fx:id="electionLbl" text="Election" GridPane.rowIndex="1" />
+                                <Label fx:id="stateLbl" text="State" GridPane.rowIndex="2" />
+                                <Button fx:id="runButton" mnemonicParsing="false" text="Run" GridPane.columnIndex="2" GridPane.rowIndex="2" />
+                                <ChoiceBox fx:id="electionPicker" prefWidth="180.0" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                                <ChoiceBox fx:id="statePicker" prefWidth="180.0" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                            </children>
+                        </GridPane>
+                        <GridPane>
+                            <columnConstraints>
+                                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                            </columnConstraints>
+                            <rowConstraints>
+                                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                            </rowConstraints>
+                            <children>
+                                <Label fx:id="downloadsDirLbl" text="Downloads Directory" />
+                                <TextField fx:id="downloadsDirTxtFld" GridPane.columnIndex="1" />
+                                <Button fx:id="downloadsDirPickerBtn" mnemonicParsing="false" text="Choose" GridPane.columnIndex="2" />
+                                <Label fx:id="databaseLbl" text="Database Location" GridPane.rowIndex="1" />
+                                <TextField fx:id="databaseTxtFld" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                                <Button fx:id="databasePickerBtn" mnemonicParsing="false" text="Choose" GridPane.columnIndex="2" GridPane.rowIndex="1" />
+                            </children>
+                        </GridPane>
+                        <TextArea fx:id="consoleTextArea" prefHeight="200.0" prefWidth="200.0" GridPane.rowIndex="2" />
+                    </children>
+                </GridPane>
+            </children>
+        </StackPane>
+    </children>
+</AnchorPane>

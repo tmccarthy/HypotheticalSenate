@@ -4,6 +4,7 @@ import au.id.tmm.hypotheticalsenate.database.HypotheticalSenateDatabase;
 import au.id.tmm.hypotheticalsenate.model.AustralianState;
 import au.id.tmm.hypotheticalsenate.model.Ballot;
 import au.id.tmm.hypotheticalsenate.model.Candidate;
+import au.id.tmm.hypotheticalsenate.model.Election;
 import au.id.tmm.hypotheticalsenate.model.GroupVotingTicket;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.ListMultimap;
@@ -38,12 +39,14 @@ public class BallotCollector {
 
     public static final int FETCH_SIZE = 100;
     private final AustralianState state;
+    private final Election election;
 
     private List<Ballot> ballots;
     private Collection<Candidate> candidates;
 
-    public BallotCollector(AustralianState state) {
+    public BallotCollector(Election election, AustralianState state) {
         this.state = state;
+        this.election = election;
     }
 
     public BallotCollector loadCandidates(HypotheticalSenateDatabase database) {
@@ -57,12 +60,14 @@ public class BallotCollector {
             ResultSet resultSet = statement.executeQuery(
                     "SELECT candidateID, partyID, givenName, surname " +
                             "FROM Candidate " +
-                            "WHERE candidateID IN (" +
-                            "SELECT DISTINCT candidateID " +
-                            "FROM Candidate " +
-                            "JOIN GroupTicketPreference " +
-                            "ON Candidate.candidateID = GroupTicketPreference.preferencedCandidate " +
-                            "  AND GroupTicketPreference.stateCode = '" + this.state.getCode() + "');"
+                            "WHERE electionID = " + this.election.getID() + " " +
+                            "  AND candidateID IN (" +
+                            "  SELECT DISTINCT candidateID " +
+                            "  FROM Candidate " +
+                            "  JOIN GroupTicketPreference " +
+                            "  ON Candidate.candidateID = GroupTicketPreference.preferencedCandidate " +
+                            "  AND GroupTicketPreference.stateCode = '" + this.state.getCode() + "'" +
+                            ");"
             );
 
             while(resultSet.next()) {
@@ -110,7 +115,8 @@ public class BallotCollector {
             ResultSet atlVotesResultSet = statement.executeQuery(
                     "SELECT groupID, votes " +
                             "FROM AboveTheLineVotes " +
-                            "WHERE stateCode = '" + this.state.getCode() + "';"
+                            "WHERE stateCode = '" + this.state.getCode() + "'" +
+                            "  AND electionID = " + this.election.getID() + ";"
             );
 
             while (atlVotesResultSet.next()) {
@@ -121,6 +127,7 @@ public class BallotCollector {
                     "SELECT ownerGroup, ticket, preference, preferencedCandidate " +
                             "FROM GroupTicketPreference " +
                             "WHERE stateCode = '" + this.state.getCode() + "' " +
+                            "  AND electionID = " + this.election.getID() + " " +
                             "ORDER BY ownerGroup ASC, ticket ASC, preference ASC;"
             );
 
@@ -182,6 +189,7 @@ public class BallotCollector {
                     "SELECT ballotID, candidateID, preference " +
                             "FROM BelowTheLineBallot " +
                             "WHERE stateCode = '" + this.state.getCode() + "' " +
+                            "  AND electionID = " + this.election.getID() + " " +
                             "ORDER BY ballotID ASC, preference ASC;");
 
             if (resultSet.next()) {
@@ -222,7 +230,8 @@ public class BallotCollector {
                     statement.executeQuery(
                             "SELECT COUNT(DISTINCT ballotID) AS numBallots " +
                                     "FROM BelowTheLineBallot " +
-                                    "WHERE stateCode = '" + this.state.getCode() + "'")
+                                    "WHERE stateCode = '" + this.state.getCode() + "' " +
+                                    "  AND electionID = " + this.election.getID() + ";")
                             .getLong("numBallots"));
         });
 
@@ -240,7 +249,8 @@ public class BallotCollector {
                     statement.executeQuery(
                             "SELECT COUNT(DISTINCT candidateID) AS numCandidates " +
                                     "FROM BelowTheLineBallot " +
-                                    "WHERE stateCode = '" + this.state.getCode() + "'")
+                                    "WHERE stateCode = '" + this.state.getCode() + "' " +
+                                    "  AND electionID = " + this.election.getID() + ";")
                             .getLong("numCandidates"));
         });
 
@@ -259,7 +269,8 @@ public class BallotCollector {
             ResultSet groupCountResult = statement.executeQuery(
                     "SELECT COUNT(DISTINCT groupID) as groupCount " +
                             "FROM GroupTicketInfo " +
-                            "WHERE stateCode = '" + this.state.getCode() + "'"
+                            "WHERE stateCode = '" + this.state.getCode() + "' " +
+                            "  AND electionID = " + this.election.getID() + ";"
             );
 
             groupCountResult.next();

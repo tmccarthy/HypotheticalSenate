@@ -83,6 +83,10 @@ public class Ballot {
         return intrinsicWeight;
     }
 
+    public void setIntrinsicWeight(double intrinsicWeight) {
+        this.intrinsicWeight = intrinsicWeight;
+    }
+
     public TIntList getCandidateToPreferenceMap() {
         return candidateOrder;
     }

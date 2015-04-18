@@ -1,7 +1,7 @@
 package au.id.tmm.hypotheticalsenate.database;
 
 import au.id.tmm.hypotheticalsenate.model.AustralianState;
-import com.google.common.collect.ImmutableMap;
+import au.id.tmm.hypotheticalsenate.model.Election;
 
 import javax.annotation.Nullable;
 import java.net.MalformedURLException;
@@ -13,52 +13,26 @@ import java.util.Optional;
  *
  * @author timothy
  */
-public enum AECResource {
+public class AECResource {
 
-    SENATE_CANDIDATES("http://results.aec.gov.au/17496/Website/Downloads/" +
-            "SenateCandidatesDownload-17496.txt"),
-    GROUP_VOTING_TICKETS("http://results.aec.gov.au/17496/Website/Downloads/" +
-            "SenateGroupVotingTicketsDownload-17496.txt"),
-    GROUP_FIRST_PREFERENCES("http://results.aec.gov.au/17496/Website/Downloads/" +
-            "SenateUseOfGvtByGroupDownload-17496.txt"),
-    ACT_BTL_PREFERENCES("http://results.aec.gov.au/17496/Website/External/" +
-            "SenateStateBtlDownload-17496-ACT.zip",
-            "SenateStateBTLPreferences-17496-ACT.txt"),
-    NSW_BTL_PREFERENCES("http://results.aec.gov.au/17496/Website/External/" +
-            "SenateStateBtlDownload-17496-NSW.zip",
-            true,
-            "SenateStateBTLPreferences-17496-NSW.csv", ','),
-    NT_BTL_PREFERENCES("http://results.aec.gov.au/17496/Website/External/" +
-            "SenateStateBtlDownload-17496-NT.zip",
-            "SenateStateBTLPreferences-17496-NT.txt"),
-    QLD_BTL_PREFERENCES("http://results.aec.gov.au/17496/Website/External/" +
-            "SenateStateBtlDownload-17496-QLD.zip",
-            "SenateStateBTLPreferences-17496-QLD.txt"),
-    SA_BTL_PREFERENCES("http://results.aec.gov.au/17496/Website/External/" +
-            "SenateStateBtlDownload-17496-SA.zip",
-            "SenateStateBTLPreferences-17496-SA.txt"),
-    TAS_BTL_PREFERENCES("http://results.aec.gov.au/17496/Website/External/" +
-            "SenateStateBtlDownload-17496-TAS.zip",
-            "SenateStateBTLPreferences-17496-TAS.txt"),
-    VIC_BTL_PREFERENCES("http://results.aec.gov.au/17496/Website/External/" +
-            "SenateStateBtlDownload-17496-VIC.zip",
-            "SenateStateBTLPreferences-17496-VIC.txt"),
-    WA_BTL_PREFERENCES("http://results.aec.gov.au/17496/Website/External/" +
-            "SenateStateBtlDownload-17496-WA.zip",
-            "SenateStateBTLPreferences-17496-WA.txt")
-    ;
+    public static AECResource candidates(Election election) {
+        return new AECResource("http://results.aec.gov.au/" + election.getID() + "/Website/Downloads/SenateCandidatesDownload-" + election.getID() + ".txt");
+    }
 
-    public static final ImmutableMap<AustralianState, AECResource> BTL_DATA_MAP =
-            ImmutableMap.<AustralianState, AECResource>builder()
-                    .put(AustralianState.ACT, ACT_BTL_PREFERENCES)
-                    .put(AustralianState.NSW, NSW_BTL_PREFERENCES)
-                    .put(AustralianState.NT, NT_BTL_PREFERENCES)
-                    .put(AustralianState.QLD, QLD_BTL_PREFERENCES)
-                    .put(AustralianState.SA, SA_BTL_PREFERENCES)
-                    .put(AustralianState.TAS, TAS_BTL_PREFERENCES)
-                    .put(AustralianState.VIC, VIC_BTL_PREFERENCES)
-                    .put(AustralianState.WA, WA_BTL_PREFERENCES)
-                    .build();
+    public static AECResource groupVotingTickets(Election election) {
+        return new AECResource("http://results.aec.gov.au/" + election.getID() + "/Website/Downloads/SenateGroupVotingTicketsDownload-" + election.getID() + ".txt");
+    }
+
+    public static AECResource groupFirstPreferences(Election election) {
+        return new AECResource("http://results.aec.gov.au/" + election.getID() + "/Website/Downloads/SenateUseOfGvtByGroupDownload-" + election.getID() + ".txt");
+    }
+
+    public static AECResource btlPreferences(Election election, AustralianState state) {
+        return new AECResource("http://results.aec.gov.au/" + election.getID() + "/Website/External/SenateStateBtlDownload-" + election.getID() + "-" + state.getCode() + ".zip",
+                true,
+                "SenateStateBTLPreferences-" + election.getID() + "-" + state.getCode() + ".csv",
+                ',');
+    }
 
     private URL resourceLocation;
     private boolean inZip;
